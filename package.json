@@ -14,6 +14,7 @@
     "build": "tsc && cp src/abis/*.json dist/abis/",
     "clean": "rm -rf dist",
     "generate-abis": "node scripts/extract-abis.js",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "devDependencies": {
