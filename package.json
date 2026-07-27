@@ -1,0 +1,23 @@
+{
+  "name": "@koreth/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the Koreth protocol — types, ABIs, per-chain addresses and risk parameters.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && cp src/abis/*.json dist/abis/",
+    "clean": "rm -rf dist",
+    "generate-abis": "node scripts/extract-abis.js",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.8.0"
+  }
+}
