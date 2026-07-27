@@ -4,7 +4,6 @@
   "description": "TypeScript SDK for the Koreth protocol — types, ABIs, per-chain addresses and risk parameters.",
   "license": "MIT",
   "private": true,
-  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
