@@ -3,8 +3,10 @@
 TypeScript SDK for the **Koreth** protocol. Ships the pieces an app, indexer, or
 keeper needs to talk to the contracts:
 
-- **Types** — `Position`, `PositionView`, `MarketConfig`, `MarketView`, `PriceResult`, and the
-  `LPType` / `PositionStatus` / `OracleSource` enums, mirroring the on-chain structs.
+- **Types** — `Position`, `PositionView`, `PoolView`, `CollateralTypeView`, `PriceResult`, and
+  the `LPType` / `PositionStatus` / `OracleSource` enums, mirroring the on-chain structs.
+  Liquidity (`Pool*`) and risk (`Collateral*`) are separate concerns: one lending pool per
+  borrow asset backs every collateral type, and risk params are keyed by `LPType` alone.
 - **ABIs** — extracted from [`koreth-v1-core`](https://github.com/korethlabs/koreth-v1-core)
   and [`koreth-v1-periphery`](https://github.com/korethlabs/koreth-v1-periphery), committed here so
   the package is self-contained.

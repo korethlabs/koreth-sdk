@@ -35,32 +35,88 @@
   },
   {
     "type": "function",
-    "name": "getMarketView",
+    "name": "getCollateralTypeView",
     "inputs": [
       {
-        "name": "marketId",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "lpType",
+        "type": "uint8",
+        "internalType": "enum ILPAdapter.LPType"
       }
     ],
     "outputs": [
       {
         "name": "",
         "type": "tuple",
-        "internalType": "struct PositionViewer.MarketView",
+        "internalType": "struct PositionViewer.CollateralTypeView",
         "components": [
-          {
-            "name": "id",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
           {
             "name": "lpType",
             "type": "uint8",
             "internalType": "uint8"
           },
           {
+            "name": "maxLtv",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "liquidationThreshold",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "liquidationBonus",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "haircut",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "borrowCap",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "currentBorrows",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "enabled",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getPoolView",
+    "inputs": [
+      {
+        "name": "borrowAsset",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct PositionViewer.PoolView",
+        "components": [
+          {
             "name": "borrowAsset",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "pool",
             "type": "address",
             "internalType": "address"
           },
@@ -86,11 +142,6 @@
           },
           {
             "name": "borrowRateAPR",
-            "type": "uint256",
-            "internalType": "uint256"
-          },
-          {
-            "name": "maxLtv",
             "type": "uint256",
             "internalType": "uint256"
           }

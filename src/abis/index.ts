@@ -5,9 +5,8 @@ import LendingEngine from './LendingEngine.json';
 import LiquidationEngine from './LiquidationEngine.json';
 import FeeCollector from './FeeCollector.json';
 import LPOracleHub from './LPOracleHub.json';
-import Market from './Market.json';
-import MarketFactory from './MarketFactory.json';
-import MarketRegistry from './MarketRegistry.json';
+import LendingPool from './LendingPool.json';
+import PoolFactory from './PoolFactory.json';
 import InterestRateModel from './InterestRateModel.json';
 import CircuitBreaker from './CircuitBreaker.json';
 import RiskManager from './RiskManager.json';
@@ -28,9 +27,8 @@ export const abis = {
   LiquidationEngine,
   FeeCollector,
   LPOracleHub,
-  Market,
-  MarketFactory,
-  MarketRegistry,
+  LendingPool,
+  PoolFactory,
   InterestRateModel,
   CircuitBreaker,
   RiskManager,
