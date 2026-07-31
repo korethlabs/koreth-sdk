@@ -23,9 +23,16 @@ export interface Position {
   pool: `0x${string}`;
   token0: `0x${string}`;
   token1: `0x${string}`;
-  marketId: bigint;
+  /**
+   * The ERC-20 the position borrows — e.g. USDC, not a pool address. It keys the shared lending
+   * pool via `ProtocolCore.pools(borrowAsset)`. Distinct from `pool` above, which is the AMM
+   * pair the LP token belongs to.
+   */
+  borrowAsset: `0x${string}`;
   status: PositionStatus;
   depositTimestamp: bigint;
+  /** Block number at deposit — the borrow cooldown is measured against it. */
+  depositBlock: bigint;
 }
 
 export interface PositionView {

@@ -1,12 +1,18 @@
 import { LPType } from '../types/position';
 
+/**
+ * Reference values for the *ratio* fields of `RiskManager.CollateralConfig`, per collateral
+ * type. Deliberately not the whole config: `borrowCap` and `enabled` are operational levers an
+ * admin moves at runtime, so read those from the chain (`CollateralTypeView`) rather than here.
+ *
+ * The listing gates that used to sit alongside these (`minPoolTvl`, `minPoolAge`) were
+ * per-market and no longer exist: collateral is whitelisted by LP type, not per pool.
+ */
 export interface RiskParams {
   maxLtvBps: number;
   liquidationThresholdBps: number;
   liquidationBonusBps: number;
   haircutBps: number;
-  minPoolTvlUsd: number;
-  minPoolAgeDays: number;
 }
 
 export const riskParams: Record<LPType, RiskParams> = {
@@ -15,47 +21,35 @@ export const riskParams: Record<LPType, RiskParams> = {
     liquidationThresholdBps: 8000,
     liquidationBonusBps: 500,
     haircutBps: 500,
-    minPoolTvlUsd: 5_000_000,
-    minPoolAgeDays: 30,
   },
   [LPType.UniswapV3]: {
     maxLtvBps: 6500,
     liquidationThresholdBps: 7500,
     liquidationBonusBps: 500,
     haircutBps: 700,
-    minPoolTvlUsd: 5_000_000,
-    minPoolAgeDays: 30,
   },
   [LPType.Curve]: {
     maxLtvBps: 8500,
     liquidationThresholdBps: 9000,
     liquidationBonusBps: 300,
     haircutBps: 300,
-    minPoolTvlUsd: 10_000_000,
-    minPoolAgeDays: 30,
   },
   [LPType.Aerodrome]: {
     maxLtvBps: 6000,
     liquidationThresholdBps: 7000,
     liquidationBonusBps: 600,
     haircutBps: 800,
-    minPoolTvlUsd: 3_000_000,
-    minPoolAgeDays: 30,
   },
   [LPType.PancakeSwapV2]: {
     maxLtvBps: 6500,
     liquidationThresholdBps: 7500,
     liquidationBonusBps: 500,
     haircutBps: 700,
-    minPoolTvlUsd: 3_000_000,
-    minPoolAgeDays: 30,
   },
   [LPType.PancakeSwapV3]: {
     maxLtvBps: 6000,
     liquidationThresholdBps: 7000,
     liquidationBonusBps: 600,
     haircutBps: 800,
-    minPoolTvlUsd: 3_000_000,
-    minPoolAgeDays: 30,
   },
 };

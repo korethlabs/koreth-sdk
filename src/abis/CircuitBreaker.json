@@ -12,6 +12,25 @@
   },
   {
     "type": "function",
+    "name": "collateralFrozen",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum ILPAdapter.LPType"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "core",
     "inputs": [],
     "outputs": [
@@ -25,12 +44,12 @@
   },
   {
     "type": "function",
-    "name": "freezeMarket",
+    "name": "freezeCollateral",
     "inputs": [
       {
-        "name": "marketId",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "lpType",
+        "type": "uint8",
+        "internalType": "enum ILPAdapter.LPType"
       },
       {
         "name": "reason",
@@ -49,25 +68,6 @@
         "name": "pool",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "marketFrozen",
-    "inputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "outputs": [
@@ -118,12 +118,12 @@
   },
   {
     "type": "function",
-    "name": "unfreezeMarket",
+    "name": "unfreezeCollateral",
     "inputs": [
       {
-        "name": "marketId",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "lpType",
+        "type": "uint8",
+        "internalType": "enum ILPAdapter.LPType"
       }
     ],
     "outputs": [],
@@ -144,13 +144,13 @@
   },
   {
     "type": "event",
-    "name": "MarketFrozen",
+    "name": "CollateralFrozen",
     "inputs": [
       {
-        "name": "marketId",
-        "type": "uint256",
+        "name": "lpType",
+        "type": "uint8",
         "indexed": true,
-        "internalType": "uint256"
+        "internalType": "enum ILPAdapter.LPType"
       },
       {
         "name": "reason",
@@ -163,13 +163,13 @@
   },
   {
     "type": "event",
-    "name": "MarketUnfrozen",
+    "name": "CollateralUnfrozen",
     "inputs": [
       {
-        "name": "marketId",
-        "type": "uint256",
+        "name": "lpType",
+        "type": "uint8",
         "indexed": true,
-        "internalType": "uint256"
+        "internalType": "enum ILPAdapter.LPType"
       }
     ],
     "anonymous": false
