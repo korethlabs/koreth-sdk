@@ -1,7 +1,10 @@
 import { LPType } from '../types/position';
 
 /**
- * Reference risk parameters per collateral type, mirroring `RiskManager.CollateralConfig`.
+ * Reference values for the *ratio* fields of `RiskManager.CollateralConfig`, per collateral
+ * type. Deliberately not the whole config: `borrowCap` and `enabled` are operational levers an
+ * admin moves at runtime, so read those from the chain (`CollateralTypeView`) rather than here.
+ *
  * The listing gates that used to sit alongside these (`minPoolTvl`, `minPoolAge`) were
  * per-market and no longer exist: collateral is whitelisted by LP type, not per pool.
  */
