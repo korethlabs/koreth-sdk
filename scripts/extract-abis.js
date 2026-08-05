@@ -35,7 +35,7 @@ const CORE_CONTRACTS = [
   'InterestRateModel',
   'CircuitBreaker',
   'RiskManager',
-  'PoolHealthMonitor',
+  'PoolLiquidityMonitor',
 ];
 
 const PERIPHERY_CONTRACTS = [

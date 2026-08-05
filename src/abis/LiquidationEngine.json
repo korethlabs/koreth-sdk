@@ -110,6 +110,19 @@
   },
   {
     "type": "function",
+    "name": "getFeeCollector",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract FeeCollector"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getLiquidationBonus",
     "inputs": [
       {

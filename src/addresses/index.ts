@@ -9,7 +9,7 @@ export interface ProtocolAddresses {
   circuitBreaker: `0x${string}`;
   riskManager: `0x${string}`;
   poolFactory: `0x${string}`;
-  poolHealthMonitor: `0x${string}`;
+  poolLiquidityMonitor: `0x${string}`;
   interestRateModel: `0x${string}`;
   // Periphery
   positionViewer: `0x${string}`;

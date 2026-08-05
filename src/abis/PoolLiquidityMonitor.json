@@ -17,7 +17,7 @@
   },
   {
     "type": "function",
-    "name": "MAX_DROP_THRESHOLD",
+    "name": "MAX_TVL_DROP_BPS",
     "inputs": [],
     "outputs": [
       {
@@ -30,7 +30,7 @@
   },
   {
     "type": "function",
-    "name": "MIN_DROP_THRESHOLD",
+    "name": "MAX_TVL_DROP_WINDOW",
     "inputs": [],
     "outputs": [
       {
@@ -43,20 +43,60 @@
   },
   {
     "type": "function",
-    "name": "checkPoolHealth",
+    "name": "MIN_TVL_DROP_BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MIN_TVL_DROP_WINDOW",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MIN_TVL_FLOOR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "checkPool",
     "inputs": [
       {
         "name": "pool",
         "type": "address",
         "internalType": "address"
-      },
-      {
-        "name": "currentTvl",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
-    "outputs": [],
+    "outputs": [
+      {
+        "name": "healthy",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -87,7 +127,45 @@
   },
   {
     "type": "function",
-    "name": "criticalTvlDropBps",
+    "name": "lastCheckedAt",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lastKnownTvl",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "minPoolTvl",
     "inputs": [],
     "outputs": [
       {
@@ -100,71 +178,29 @@
   },
   {
     "type": "function",
-    "name": "lastSnapshot",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "tvl",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "minRequiredTvl",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "setCriticalTvlDrop",
-    "inputs": [
-      {
-        "name": "_bps",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setMinTvl",
+    "name": "poolTvlUsd",
     "inputs": [
       {
         "name": "pool",
         "type": "address",
         "internalType": "address"
-      },
+      }
+    ],
+    "outputs": [
       {
-        "name": "minTvl",
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setMinPoolTvl",
+    "inputs": [
+      {
+        "name": "_minTvl",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -187,6 +223,19 @@
   },
   {
     "type": "function",
+    "name": "setTvlDropWindow",
+    "inputs": [
+      {
+        "name": "_seconds",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "tvlDropThresholdBps",
     "inputs": [],
     "outputs": [
@@ -199,23 +248,17 @@
     "stateMutability": "view"
   },
   {
-    "type": "event",
-    "name": "MinTvlUpdated",
-    "inputs": [
+    "type": "function",
+    "name": "tvlDropWindow",
+    "inputs": [],
+    "outputs": [
       {
-        "name": "pool",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "minTvl",
+        "name": "",
         "type": "uint256",
-        "indexed": false,
         "internalType": "uint256"
       }
     ],
-    "anonymous": false
+    "stateMutability": "view"
   },
   {
     "type": "event",
@@ -244,7 +287,7 @@
   },
   {
     "type": "event",
-    "name": "PoolHealthAlert",
+    "name": "PoolLiquidityChecked",
     "inputs": [
       {
         "name": "pool",
@@ -253,22 +296,16 @@
         "internalType": "address"
       },
       {
-        "name": "currentTvl",
+        "name": "tvlUsd",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
       },
       {
-        "name": "previousTvl",
-        "type": "uint256",
+        "name": "healthy",
+        "type": "bool",
         "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "severity",
-        "type": "string",
-        "indexed": false,
-        "internalType": "string"
+        "internalType": "bool"
       }
     ],
     "anonymous": false

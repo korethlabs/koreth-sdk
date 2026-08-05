@@ -10,7 +10,7 @@ import PoolFactory from './PoolFactory.json';
 import InterestRateModel from './InterestRateModel.json';
 import CircuitBreaker from './CircuitBreaker.json';
 import RiskManager from './RiskManager.json';
-import PoolHealthMonitor from './PoolHealthMonitor.json';
+import PoolLiquidityMonitor from './PoolLiquidityMonitor.json';
 
 // Periphery
 import PositionViewer from './PositionViewer.json';
@@ -32,7 +32,7 @@ export const abis = {
   InterestRateModel,
   CircuitBreaker,
   RiskManager,
-  PoolHealthMonitor,
+  PoolLiquidityMonitor,
   PositionViewer,
   LeverageTransformer,
   CompoundSwapRouter,
