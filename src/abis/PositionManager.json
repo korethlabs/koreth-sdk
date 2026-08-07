@@ -376,6 +376,11 @@
             "name": "depositBlock",
             "type": "uint256",
             "internalType": "uint256"
+          },
+          {
+            "name": "recordedValue",
+            "type": "uint256",
+            "internalType": "uint256"
           }
         ]
       }
