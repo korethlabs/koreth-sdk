@@ -74,9 +74,15 @@ function extract(outDir, names, label) {
       continue;
     }
 
+    // The trailing newline is not cosmetic. These files are compared byte-for-byte
+    // against a fresh regeneration, so any byte an editor or formatter would add on
+    // its own turns that comparison red for a reason unrelated to the contracts —
+    // and the quickest way out of that red is to loosen the comparison, which
+    // silently removes the check. Emitting the newline the tooling would add anyway
+    // keeps the only differences that can ever appear here real ones.
     fs.writeFileSync(
       path.join(ABIS_DIR, `${name}.json`),
-      JSON.stringify(abi, null, 2)
+      `${JSON.stringify(abi, null, 2)}\n`
     );
     console.log(`  OK: ${name} (${abi.length} entries)`);
     extracted++;

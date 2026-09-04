@@ -4,15 +4,48 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The drift job below watches another repo's contracts, so tying it to this repo's
+  # activity is the wrong clock. The ABIs here went stale when core changed on
+  # 2026-08-13 and nothing noticed until an unrelated PR three weeks later — not
+  # because the check was wrong, but because there was no PR to run it on. A repo
+  # that is idle while its dependency moves is exactly the case a push/PR trigger
+  # cannot see.
+  #
+  # Daily rather than weekly, and the cheaper-looking option is the more expensive one.
+  # The contract builds below are cached on a key derived from the contract sources, and
+  # GitHub evicts a cache that has gone seven days without being accessed. While this repo
+  # is idle — the only situation this trigger exists for — nothing else touches that cache,
+  # so a weekly run sits exactly on the eviction boundary and would pay the full via-IR
+  # build of core and periphery almost every time. A daily run keeps the cache warm and
+  # pays a restore, and on a day when the contracts really did change it pays the build it
+  # was supposed to pay. Shorter detection window, lower steady-state cost.
+  #
+  # Off the hour deliberately: scheduled runs are delayed or dropped under the load spike at :00.
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Keyed on the event as well as the ref, which only begins to matter once schedule is in
+  # the list above. A scheduled run reports github.ref as the default branch — the same value
+  # a push to main reports — so without the event in the key the two share a group, and
+  # cancel-in-progress makes them evict each other: a cron landing mid-run cancels the
+  # post-merge checks, and a merge landing mid-cron silently drops that day's drift check.
+  # Both are losses of exactly the signal the schedule was added to provide, and adding the
+  # trigger is what introduces them.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     name: build + typecheck
     runs-on: ubuntu-latest
+    # Kept off the schedule. This job reads only files committed in this repository, so with
+    # no commits between two scheduled runs its answer cannot change, and a daily green that
+    # restates the previous day's is the kind of uninformative tick the drift job below
+    # exists to remove. The schedule is there for the one question whose answer moves while
+    # this repo is idle; a job that cannot move should not be riding on it and diluting it.
+    if: github.event_name != 'schedule'
     steps:
       - uses: actions/checkout@v4
 
@@ -24,5 +57,172 @@ jobs:
       - run: npm ci
 
       # Compiles TS -> dist and copies the committed ABIs. Fails on any type error.
+      #
+      # Note what it cannot catch. The ABIs are plain JSON that this package re-exports
+      # without ever checking them against a contract, so a stale ABI has no type to be
+      # wrong about and compiles exactly as cleanly as a correct one. That is why this
+      # job stayed green for the month the committed ABIs spent describing contracts
+      # that no longer existed, and it is the gap the abi-drift job below closes.
       - name: Build
         run: npm run build
+
+  # src/abis/ is a copy of a build output from two other repos, and a copy goes stale
+  # silently: nothing here imports it in a way that could fail, and no consumer decodes
+  # against it until runtime. When it drifts, the symptom is a call that reverts or an
+  # event that is never matched, arriving with no connection to the change that caused it.
+  #
+  # So regenerate the ABIs from the contracts and require it to be a no-op. The check runs
+  # the repo's own scripts/extract-abis.js rather than a purpose-built comparison,
+  # deliberately: a separate implementation of "what the ABI should be" would be a second
+  # copy able to drift on its own, which is the failure being fixed.
+  abi-drift:
+    name: committed ABIs match the contracts
+    # Hosted, not the self-hosted deploy box, and the difference from koreth-subgraph's
+    # equivalent job is deliberate rather than an oversight.
+    #
+    # That job is self-hosted because a subgraph deploy reads the core clone already on the
+    # box, so those artifacts are not an approximation of what the deploy uses — they are it.
+    # Neither half of that reasoning transfers here. This package is not deployed to the box
+    # at all, and the box has no periphery clone to compare against: the deploy scripts clone
+    # core only, so a check run there could cover twelve of these eighteen ABIs and would be
+    # quietly blind to the other six. A guard that silently covers two thirds is the same
+    # kind of uninformative green this job exists to remove.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Stated up front rather than left to surface as a git authentication error further
+      # down. Both contract repos are private and the default GITHUB_TOKEN is scoped to this
+      # repository alone, so without a separate credential nothing can be cloned, nothing can
+      # be built, and there is no comparison to make. Fail rather than skip: a token that has
+      # lapsed must not turn this into a run that checked nothing and said so in green.
+      - name: Require a token that can read the contract repos
+        env:
+          SUBMODULE_TOKEN: ${{ secrets.SUBMODULE_TOKEN }}
+        run: |
+          if [ -z "$SUBMODULE_TOKEN" ]; then
+            echo "::error::SUBMODULE_TOKEN is not set, so the private contract repos cannot be cloned and the committed ABIs cannot be checked against anything. Failing rather than reporting a green run that compared nothing."
+            exit 1
+          fi
+
+      # Both taken at main. The alternative was to read core through periphery's submodule
+      # pin, which is a pinned ref and so would not move under an unrelated pull request —
+      # but it would also hold this check at whatever core commit periphery last vendored,
+      # leaving the ABIs free to go stale against core itself while the job stayed green.
+      # Staleness against core is the failure being fixed, so the check follows core.
+      #
+      # The cost is honest and worth stating: once core merges an interface change, the next
+      # pull request opened here goes red for something its author did not do. That is the
+      # intended signal — the ABIs really are stale at that point — and the fix is to run
+      # `npm run generate-abis` and commit the result.
+      - name: Check out koreth-v1-core
+        uses: actions/checkout@v4
+        with:
+          repository: korethlabs/koreth-v1-core
+          ref: main
+          path: contracts/core
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+          # core's own submodules are public HTTPS remotes, so they need no rewriting.
+          submodules: recursive
+
+      - name: Check out koreth-v1-periphery
+        uses: actions/checkout@v4
+        with:
+          repository: korethlabs/koreth-v1-periphery
+          ref: main
+          path: contracts/periphery
+          token: ${{ secrets.SUBMODULE_TOKEN }}
+          # Deliberately not `submodules: recursive`: periphery's .gitmodules points at the
+          # private core over SSH, which no token can satisfy. Handled in the next step.
+
+      # periphery vendors the private core as an SSH submodule, and no credential can satisfy
+      # an SSH remote, so the URL has to be rewritten to an authenticated HTTPS one.
+      #
+      # The rewrite is supplied through GIT_CONFIG_COUNT rather than written with
+      # `git config --global`. Both are visible to the child git processes that `submodule
+      # update` spawns, which is the only requirement; the difference is that this form never
+      # puts the credential on the filesystem. A token in ~/.gitconfig outlives the step that
+      # needed it, stays readable by every later step in the job, and is picked up by anything
+      # that archives the runner's home directory. Deleting it afterwards would not close that
+      # window either, since a step that fails never reaches its own cleanup.
+      - name: Fetch periphery's submodules
+        working-directory: contracts/periphery
+        env:
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: url.https://x-access-token:${{ secrets.SUBMODULE_TOKEN }}@github.com/.insteadOf
+          GIT_CONFIG_VALUE_0: 'git@github.com:'
+        run: git submodule update --init --recursive --depth=1
+
+      # via-IR compilation is memory-hungry and the 2-core runner OOMs without headroom,
+      # the same way it does in both contract repos' own CI. Turning the optimizer off to
+      # make this cheaper is not available: core does not compile without via-IR at all
+      # ("Stack too deep"), so the full cost is unavoidable rather than merely conservative.
+      - name: Add swap space
+        run: |
+          sudo fallocate -l 12G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          swapon --show
+
+      # Pinned to the version both contract repos build with. The ABI is a property of the
+      # sources rather than of the compiler settings, so this pin is about reproducibility
+      # and about failing the same way they do, not about the ABI's content.
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.7.1
+
+      # Keyed on the contract sources, so a run only pays the full via-IR cost when the
+      # contracts have actually changed — which is precisely when this job has something to
+      # report. Note periphery compiles core's sources out of lib/, so its key includes them.
+      - name: Cache the contract builds
+        uses: actions/cache@v4
+        with:
+          path: |
+            contracts/core/out
+            contracts/core/cache
+            contracts/periphery/out
+            contracts/periphery/cache
+          key: >-
+            abis-${{ runner.os }}-${{ hashFiles(
+              'contracts/core/src/**/*.sol',
+              'contracts/core/foundry.toml',
+              'contracts/periphery/src/**/*.sol',
+              'contracts/periphery/foundry.toml',
+              'contracts/periphery/remappings.txt',
+              'contracts/periphery/lib/koreth-v1-core/src/**/*.sol'
+            ) }}
+
+      # Tests and scripts are skipped: they contribute no ABI that this package extracts,
+      # and compiling them would add the repos' whole test surface to a job that only needs
+      # src/. A test that does not compile is the contract repos' CI to report, not this one's.
+      - name: Build the contracts
+        run: |
+          forge build --root contracts/core --skip '*.t.sol' --skip 'script/**'
+          forge build --root contracts/periphery --skip '*.t.sol' --skip 'script/**'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # extract-abis.js exits non-zero if any of the eighteen artifacts is absent, so a
+      # contract renamed or removed upstream is reported here rather than silently leaving
+      # the previous copy in place and comparing clean against it.
+      - name: Regenerate the ABIs from the contracts
+        env:
+          CORE_OUT: ${{ github.workspace }}/contracts/core/out
+          PERIPHERY_OUT: ${{ github.workspace }}/contracts/periphery/out
+        run: npm run generate-abis
+
+      # Staged first, because a plain `git diff` compares tracked files only. Adding a
+      # contract to extract-abis.js generates an ABI that nothing has committed yet, and an
+      # untracked file is invisible to `git diff` — the check would pass while claiming the
+      # committed ABIs are complete, which is the kind of green this job exists to prevent.
+      - name: Fail if the committed ABIs differ
+        run: |
+          git add -A -- src/abis/
+          git diff --cached --exit-code -- src/abis/
