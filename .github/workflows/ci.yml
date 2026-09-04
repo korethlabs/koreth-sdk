@@ -10,8 +10,19 @@ on:
   # because the check was wrong, but because there was no PR to run it on. A repo
   # that is idle while its dependency moves is exactly the case a push/PR trigger
   # cannot see.
+  #
+  # Daily rather than weekly, and the cheaper-looking option is the more expensive one.
+  # The contract builds below are cached on a key derived from the contract sources, and
+  # GitHub evicts a cache that has gone seven days without being accessed. While this repo
+  # is idle — the only situation this trigger exists for — nothing else touches that cache,
+  # so a weekly run sits exactly on the eviction boundary and would pay the full via-IR
+  # build of core and periphery almost every time. A daily run keeps the cache warm and
+  # pays a restore, and on a day when the contracts really did change it pays the build it
+  # was supposed to pay. Shorter detection window, lower steady-state cost.
+  #
+  # Off the hour deliberately: scheduled runs are delayed or dropped under the load spike at :00.
   schedule:
-    - cron: '17 6 * * 1'
+    - cron: '17 6 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -19,7 +30,7 @@ concurrency:
   # the list above. A scheduled run reports github.ref as the default branch — the same value
   # a push to main reports — so without the event in the key the two share a group, and
   # cancel-in-progress makes them evict each other: a cron landing mid-run cancels the
-  # post-merge checks, and a merge landing mid-cron silently drops that week's drift check.
+  # post-merge checks, and a merge landing mid-cron silently drops that day's drift check.
   # Both are losses of exactly the signal the schedule was added to provide, and adding the
   # trigger is what introduces them.
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
@@ -30,8 +41,8 @@ jobs:
     name: build + typecheck
     runs-on: ubuntu-latest
     # Kept off the schedule. This job reads only files committed in this repository, so with
-    # no commits between two scheduled runs its answer cannot change, and a weekly green that
-    # restates the previous week's is the kind of uninformative tick the drift job below
+    # no commits between two scheduled runs its answer cannot change, and a daily green that
+    # restates the previous day's is the kind of uninformative tick the drift job below
     # exists to remove. The schedule is there for the one question whose answer moves while
     # this repo is idle; a job that cannot move should not be riding on it and diluting it.
     if: github.event_name != 'schedule'
