@@ -135,17 +135,23 @@ jobs:
           # Deliberately not `submodules: recursive`: periphery's .gitmodules points at the
           # private core over SSH, which no token can satisfy. Handled in the next step.
 
-      # periphery vendors the private core as an SSH submodule. Rewrite the remote to an
-      # authenticated HTTPS one, globally so the rewrite cannot end up committed to a
-      # checkout. This mirrors what koreth-v1-periphery's own CI does for the same reason.
+      # periphery vendors the private core as an SSH submodule, and no credential can satisfy
+      # an SSH remote, so the URL has to be rewritten to an authenticated HTTPS one.
+      #
+      # The rewrite is supplied through GIT_CONFIG_COUNT rather than written with
+      # `git config --global`. Both are visible to the child git processes that `submodule
+      # update` spawns, which is the only requirement; the difference is that this form never
+      # puts the credential on the filesystem. A token in ~/.gitconfig outlives the step that
+      # needed it, stays readable by every later step in the job, and is picked up by anything
+      # that archives the runner's home directory. Deleting it afterwards would not close that
+      # window either, since a step that fails never reaches its own cleanup.
       - name: Fetch periphery's submodules
         working-directory: contracts/periphery
         env:
-          SUBMODULE_TOKEN: ${{ secrets.SUBMODULE_TOKEN }}
-        run: |
-          git config --global \
-            url."https://x-access-token:${SUBMODULE_TOKEN}@github.com/".insteadOf "git@github.com:"
-          git submodule update --init --recursive --depth=1
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: url.https://x-access-token:${{ secrets.SUBMODULE_TOKEN }}@github.com/.insteadOf
+          GIT_CONFIG_VALUE_0: 'git@github.com:'
+        run: git submodule update --init --recursive --depth=1
 
       # via-IR compilation is memory-hungry and the 2-core runner OOMs without headroom,
       # the same way it does in both contract repos' own CI. Turning the optimizer off to
