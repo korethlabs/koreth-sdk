@@ -47,7 +47,7 @@ jobs:
     # this repo is idle; a job that cannot move should not be riding on it and diluting it.
     if: github.event_name != 'schedule'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -89,7 +89,7 @@ jobs:
     # kind of uninformative green this job exists to remove.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Stated up front rather than left to surface as a git authentication error further
       # down. Both contract repos are private and the default GITHUB_TOKEN is scoped to this
@@ -116,7 +116,7 @@ jobs:
       # intended signal — the ABIs really are stale at that point — and the fix is to run
       # `npm run generate-abis` and commit the result.
       - name: Check out koreth-v1-core
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: korethlabs/koreth-v1-core
           ref: main
@@ -126,7 +126,7 @@ jobs:
           submodules: recursive
 
       - name: Check out koreth-v1-periphery
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: korethlabs/koreth-v1-periphery
           ref: main
