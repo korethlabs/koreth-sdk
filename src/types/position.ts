@@ -8,9 +8,12 @@ export enum LPType {
 }
 
 /**
- * `IPositionManager.PositionStatus`. The ordinals are the on-chain encoding, so they must match
- * the declaration order in the interface exactly — a member added here out of order silently
- * relabels every status the protocol reports.
+ * `IPositionManager.PositionStatus`. The numeric values are the on-chain encoding: Solidity derives
+ * them from declaration order in the interface, so every value here must equal its member's position
+ * there. TypeScript does not derive anything from the order of these declarations — only the explicit
+ * values are read — which is why a wrong value is invisible to the compiler and silently relabels
+ * every status the protocol reports. Nor can the ABI catch it: enum member names are not carried in
+ * the ABI, only `internalType`, so this is checkable against core's Solidity source and nowhere else.
  */
 export enum PositionStatus {
   /** LP deposited, no debt. */
