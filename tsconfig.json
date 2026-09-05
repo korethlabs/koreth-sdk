@@ -1,8 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    // NodeNext rather than the "node" alias: TypeScript 7 removed node10, and because
+    // dist/ is not committed and "prepare" runs the build, a compile failure here does
+    // not surface as a red job in this repo — it breaks "npm ci" in every consumer.
+    // The package has no "type": "module", so files stay CommonJS and the extensionless
+    // and directory-style relative imports in src/ keep resolving unchanged.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -12,7 +17,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    // Stated explicitly because TypeScript 7 does not pick @types/node up automatically
+    // here; without it src/chains/index.ts fails on "Cannot find name 'process'".
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
