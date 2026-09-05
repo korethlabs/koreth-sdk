@@ -177,7 +177,7 @@ jobs:
       # contracts have actually changed — which is precisely when this job has something to
       # report. Note periphery compiles core's sources out of lib/, so its key includes them.
       - name: Cache the contract builds
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             contracts/core/out
