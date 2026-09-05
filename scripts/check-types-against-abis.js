@@ -128,6 +128,16 @@ function collectStructs(abiDir) {
  * core's does. Nothing here can check that — see the enum note in the header — so an `lpType`
  * arriving as a member core added and the SDK has not will be typed `LPType` and be a value the
  * type says is impossible. That is the same exposure as the enum gap, not a new one.
+ *
+ * There is a second assumption, and it is the one a passing run most invites you to forget. These
+ * fields come from PositionViewer, which is compiled against periphery's pinned copy of core; the
+ * enum the SDK narrows to comes from core's tip. If those two disagree on member order, nothing
+ * here moves: the fields are still `uint8`, so the entries below stay exercised rather than dead,
+ * and the field is still enum-valued, so the narrowing is still "correct" by the only measure this
+ * script has. It is an enum with different names attached. The invariant behind these three lines
+ * is therefore not "the fields are uint8" but "periphery's pin and core's tip agree on the
+ * ordinals" — which is not expressible from either repo's types, and is what committing
+ * periphery's ABIs alongside the pin would close.
  */
 const DECLARED_NARROWINGS = new Map([
   ['PositionViewer.PositionView.lpType', 'LPType'],
@@ -271,6 +281,16 @@ function main() {
         const tsName = tsField.name.getText(source);
         if (tsName !== abiField.name) {
           mismatches.push(`[${i}] name: ABI has \`${abiField.name}\`, interface has \`${tsName}\``);
+          continue;
+        }
+
+        // A struct component is always present in a decoded return value, so an optional field
+        // describes a shape the contract cannot produce. It would otherwise pass: the type of
+        // `foo?: bigint` still reads as `bigint`, so comparing types alone cannot see it.
+        if (tsField.questionToken) {
+          mismatches.push(
+            `[${i}] \`${tsName}\` is optional, but ABI struct components are always present`
+          );
           continue;
         }
 
