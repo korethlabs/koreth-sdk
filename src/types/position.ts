@@ -1,3 +1,10 @@
+/**
+ * `ILPAdapter.LPType`. As with `PositionStatus`, the numeric values are the on-chain encoding and
+ * are checkable only against core's Solidity source — the ABI carries the enum's name but not its
+ * members.
+ *
+ * @abi ILPAdapter.LPType
+ */
 export enum LPType {
   UniswapV2 = 0,
   UniswapV3 = 1,
@@ -8,12 +15,14 @@ export enum LPType {
 }
 
 /**
- * `IPositionManager.PositionStatus`. The numeric values are the on-chain encoding: Solidity derives
+ * The numeric values are the on-chain encoding: Solidity derives
  * them from declaration order in the interface, so every value here must equal its member's position
  * there. TypeScript does not derive anything from the order of these declarations — only the explicit
  * values are read — which is why a wrong value is invisible to the compiler and silently relabels
  * every status the protocol reports. Nor can the ABI catch it: enum member names are not carried in
  * the ABI, only `internalType`, so this is checkable against core's Solidity source and nowhere else.
+ *
+ * @abi IPositionManager.PositionStatus
  */
 export enum PositionStatus {
   /** LP deposited, no debt. */
@@ -26,6 +35,7 @@ export enum PositionStatus {
   Liquidated = 3,
 }
 
+/** @abi IPositionManager.Position */
 export interface Position {
   id: bigint;
   owner: `0x${string}`;
@@ -51,6 +61,7 @@ export interface Position {
   recordedValue: bigint;
 }
 
+/** @abi PositionViewer.PositionView */
 export interface PositionView {
   id: bigint;
   owner: `0x${string}`;

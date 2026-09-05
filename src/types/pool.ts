@@ -6,12 +6,16 @@ import { LPType } from './position';
  * every collateral type — so they are separate shapes rather than one merged config.
  */
 
-/** `ILendingPool.PoolConfig` — liquidity concern only. */
+/**
+ * Liquidity concern only.
+ *
+ * @abi ILendingPool.PoolConfig
+ */
 export interface PoolConfig {
   borrowAsset: `0x${string}`;
 }
 
-/** `ILendingPool.PoolState`. */
+/** @abi ILendingPool.PoolState */
 export interface PoolState {
   totalSupply: bigint;
   totalBorrow: bigint;
@@ -21,7 +25,7 @@ export interface PoolState {
   lastAccrualTimestamp: bigint;
 }
 
-/** `PositionViewer.PoolView`. */
+/** @abi PositionViewer.PoolView */
 export interface PoolView {
   borrowAsset: `0x${string}`;
   pool: `0x${string}`;
@@ -32,7 +36,11 @@ export interface PoolView {
   borrowRateAPR: bigint;
 }
 
-/** `RiskManager.CollateralConfig` — risk parameters keyed by LP type. */
+/**
+ * Risk parameters keyed by LP type.
+ *
+ * @abi RiskManager.CollateralConfig
+ */
 export interface CollateralConfig {
   maxLtv: bigint;
   liquidationThreshold: bigint;
@@ -43,7 +51,11 @@ export interface CollateralConfig {
   enabled: boolean;
 }
 
-/** `PositionViewer.CollateralTypeView` — the config plus current exposure. */
+/**
+ * The config plus current exposure.
+ *
+ * @abi PositionViewer.CollateralTypeView
+ */
 export interface CollateralTypeView {
   lpType: LPType;
   maxLtv: bigint;

@@ -226,3 +226,38 @@ jobs:
         run: |
           git add -A -- src/abis/
           git diff --cached --exit-code -- src/abis/
+
+  types-match-abis:
+    name: types match the committed ABIs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # src/abis/ and src/types/ are two copies of the same struct shapes, and nothing related
+      # them until this check: `generate-abis` refreshes the first and never looks at the second.
+      # Three transcriptions were wrong and the build was green over all three, because a JSON
+      # import widens to `string` and tsc has no way to notice that two files checked in at the
+      # same commit contradict each other.
+      #
+      # It asks "do these match now", recomputed from the ABI on every run, rather than "did
+      # these stop matching" — one of the three defects was wrong in its first commit and never
+      # changed afterwards, so a snapshot-and-diff guard could not have seen it at all. The other
+      # was introduced when core added a field, and was missed by three ABI syncs that landed on
+      # top of it, so a guard that only fires when a human syncs would not have helped either.
+      #
+      # This is the second link of a two-link chain and only ever the second. It compares types
+      # against the ABIs *as committed*; whether those ABIs still match the contracts is the
+      # abi-drift job's question. Both green means the types match the contracts. This one alone
+      # means only that the package agrees with itself.
+      #
+      # Kept out of `build` on purpose: `prepare` runs the build, so putting it there would make
+      # a consumer's `npm install` fail on an internal consistency check of ours.
+      - name: Check src/types against src/abis
+        run: npm run check-types
