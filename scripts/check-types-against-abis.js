@@ -42,7 +42,14 @@
 
 const fs = require('fs');
 const path = require('path');
-const ts = require('typescript');
+// TypeScript 7 does not expose the compiler from the package root: its `exports` map points "."
+// at lib/version.cjs, so `require('typescript')` yields only { version, versionMajorMinor } and
+// `ts.createSourceFile` is undefined. The syntax tree lives behind these two subpaths instead,
+// and there is no standalone parser left — a SourceFile is reached through a Program. Upstream
+// names them `unstable` and they may move again; that is the price of reading an AST under 7.x.
+// Do not "fix" this back to require('typescript'): that is the API the major removed.
+const ast = require('typescript/unstable/ast');
+const { API } = require('typescript/unstable/sync');
 
 const repoRoot = path.resolve(__dirname, '..');
 
@@ -170,7 +177,7 @@ function expectedTsType(component) {
 /** JSDoc tag text for a declaration, or null. Reads the raw leading comment so that both
  *  `@abi` and `@abi-none` are visible without depending on how TS classifies unknown tags. */
 function readAbiTag(node, sourceText) {
-  const ranges = ts.getLeadingCommentRanges(sourceText, node.getFullStart()) || [];
+  const ranges = ast.getLeadingCommentRanges(sourceText, node.pos) || [];
   for (const range of ranges) {
     const comment = sourceText.slice(range.pos, range.end);
     const none = comment.match(/@abi-none\s+(.+)/);
@@ -179,6 +186,43 @@ function readAbiTag(node, sourceText) {
     if (named) return { kind: 'struct', name: named[1] };
   }
   return null;
+}
+
+/**
+ * A node's own source text, excluding leading trivia. TypeScript 7's nodes are data rather than
+ * objects with `getText()`, and `node.pos` is where the *trivia* starts — slicing from it pulls
+ * the preceding JSDoc comment into the text, which turns every documented field into a spurious
+ * name mismatch. `getTokenPosOfNode` is the equivalent of the old `getStart()`.
+ */
+function textOf(node, source) {
+  return source.text.slice(ast.getTokenPosOfNode(node, source), node.end);
+}
+
+function isExported(node) {
+  return (node.modifiers || []).some((m) => m.kind === ast.SyntaxKind.ExportKeyword);
+}
+
+/**
+ * Parses the given files. There is no standalone parser under TypeScript 7, so this goes through
+ * the API server: each file is *opened* rather than resolved through tsconfig, which loads a file
+ * from outside the project into an inferred project. That is what keeps `--types <dir>` working —
+ * pointing the checker at a copy of another commit's src/types/ is how it gets validated against a
+ * known-bad input, and a project-scoped lookup would silently find nothing there instead.
+ */
+function parseFiles(files) {
+  const api = new API({ cwd: repoRoot });
+  try {
+    const snapshot = api.updateSnapshot({ openFiles: files });
+    return files.map((file) => {
+      const project = snapshot.getDefaultProjectForFile(file);
+      const source = project && project.program.getSourceFile(file);
+      if (!source) throw new Error(`could not parse ${file}`);
+      // Detached from the server before it closes: statements and text are plain data.
+      return { file, source, text: source.text };
+    });
+  } finally {
+    api.close();
+  }
 }
 
 function normaliseType(text) {
@@ -206,17 +250,16 @@ function main() {
     .sort();
   if (typeFiles.length === 0) throw new Error(`no TypeScript sources found in ${opts.types}`);
 
-  for (const file of typeFiles) {
-    const fullPath = path.join(opts.types, file);
-    const sourceText = fs.readFileSync(fullPath, 'utf8');
-    const source = ts.createSourceFile(fullPath, sourceText, ts.ScriptTarget.ES2022, true);
+  const parsed = parseFiles(typeFiles.map((f) => path.join(opts.types, f)));
+
+  for (const { source, text: sourceText } of parsed) {
+    const file = path.basename(source.fileName);
 
     for (const statement of source.statements) {
-      const exported = ts.getCombinedModifierFlags(statement) & ts.ModifierFlags.Export;
-      if (!exported) continue;
+      if (!isExported(statement)) continue;
 
-      const isEnum = ts.isEnumDeclaration(statement);
-      if (!isEnum && !ts.isInterfaceDeclaration(statement)) continue;
+      const isEnum = ast.isEnumDeclaration(statement);
+      if (!isEnum && !ast.isInterfaceDeclaration(statement)) continue;
 
       const declName = statement.name.text;
       const tag = readAbiTag(statement, sourceText);
@@ -261,7 +304,7 @@ function main() {
       }
 
       const abiFields = abiStruct.components;
-      const tsFields = statement.members.filter(ts.isPropertySignature);
+      const tsFields = statement.members.filter(ast.isPropertySignatureDeclaration);
       const mismatches = [];
 
       const max = Math.max(abiFields.length, tsFields.length);
@@ -270,7 +313,7 @@ function main() {
         const tsField = tsFields[i];
 
         if (!abiField) {
-          mismatches.push(`[${i}] extra field \`${tsField.name.getText(source)}\` — the ABI struct has ${abiFields.length} fields`);
+          mismatches.push(`[${i}] extra field \`${textOf(tsField.name, source)}\` — the ABI struct has ${abiFields.length} fields`);
           continue;
         }
         if (!tsField) {
@@ -278,7 +321,7 @@ function main() {
           continue;
         }
 
-        const tsName = tsField.name.getText(source);
+        const tsName = textOf(tsField.name, source);
         if (tsName !== abiField.name) {
           mismatches.push(`[${i}] name: ABI has \`${abiField.name}\`, interface has \`${tsName}\``);
           continue;
@@ -287,7 +330,11 @@ function main() {
         // A struct component is always present in a decoded return value, so an optional field
         // describes a shape the contract cannot produce. It would otherwise pass: the type of
         // `foo?: bigint` still reads as `bigint`, so comparing types alone cannot see it.
-        if (tsField.questionToken) {
+        // Under TypeScript 7 the `?` is not a `questionToken` on the member: it is `postfixToken`,
+        // shared with the `!` of a definite assignment, so the kind has to be checked rather than
+        // the presence. Reading `questionToken` here yields `undefined` on every member and this
+        // check degrades to silence — passing for the same reason a correct file does.
+        if (tsField.postfixToken && tsField.postfixToken.kind === ast.SyntaxKind.QuestionToken) {
           mismatches.push(
             `[${i}] \`${tsName}\` is optional, but ABI struct components are always present`
           );
@@ -302,7 +349,7 @@ function main() {
           );
           continue;
         }
-        const actual = tsField.type ? tsField.type.getText(source) : '<none>';
+        const actual = tsField.type ? textOf(tsField.type, source) : '<none>';
         const narrowedTo = DECLARED_NARROWINGS.get(`${tag.name}.${abiField.name}`);
         if (narrowedTo && normaliseType(actual) === narrowedTo) {
           appliedNarrowings.add(`${tag.name}.${abiField.name}`);
