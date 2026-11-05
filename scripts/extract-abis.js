@@ -47,57 +47,67 @@ const PERIPHERY_CONTRACTS = [
   'SwapRouterAdapter',
 ];
 
-if (!fs.existsSync(ABIS_DIR)) {
-  fs.mkdirSync(ABIS_DIR, { recursive: true });
-}
+// Exported so scripts/require-contract-sources.js checks the same eighteen names this
+// script extracts. A second hand-written list would be a copy able to drift on its own.
+module.exports = { CORE_CONTRACTS, PERIPHERY_CONTRACTS };
 
-let extracted = 0;
-let missing = 0;
+function main() {
+  if (!fs.existsSync(ABIS_DIR)) {
+    fs.mkdirSync(ABIS_DIR, { recursive: true });
+  }
 
-function extract(outDir, names, label) {
-  console.log(`\n${label} (${outDir}):`);
-  for (const name of names) {
-    const artifactPath = path.join(outDir, `${name}.sol`, `${name}.json`);
+  let extracted = 0;
+  let missing = 0;
 
-    if (!fs.existsSync(artifactPath)) {
-      console.warn(`  SKIP: ${name} (not found)`);
-      missing++;
-      continue;
+  function extract(outDir, names, label) {
+    console.log(`\n${label} (${outDir}):`);
+    for (const name of names) {
+      const artifactPath = path.join(outDir, `${name}.sol`, `${name}.json`);
+
+      if (!fs.existsSync(artifactPath)) {
+        console.warn(`  SKIP: ${name} (not found)`);
+        missing++;
+        continue;
+      }
+
+      const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf-8'));
+      const abi = artifact.abi;
+
+      if (!abi) {
+        console.warn(`  SKIP: ${name} (no ABI in artifact)`);
+        missing++;
+        continue;
+      }
+
+      // The trailing newline is not cosmetic. These files are compared byte-for-byte
+      // against a fresh regeneration, so any byte an editor or formatter would add on
+      // its own turns that comparison red for a reason unrelated to the contracts —
+      // and the quickest way out of that red is to loosen the comparison, which
+      // silently removes the check. Emitting the newline the tooling would add anyway
+      // keeps the only differences that can ever appear here real ones.
+      fs.writeFileSync(
+        path.join(ABIS_DIR, `${name}.json`),
+        `${JSON.stringify(abi, null, 2)}\n`
+      );
+      console.log(`  OK: ${name} (${abi.length} entries)`);
+      extracted++;
     }
+  }
 
-    const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf-8'));
-    const abi = artifact.abi;
+  extract(CORE_OUT, CORE_CONTRACTS, 'core');
+  extract(PERIPHERY_OUT, PERIPHERY_CONTRACTS, 'periphery');
 
-    if (!abi) {
-      console.warn(`  SKIP: ${name} (no ABI in artifact)`);
-      missing++;
-      continue;
-    }
+  const total = CORE_CONTRACTS.length + PERIPHERY_CONTRACTS.length;
+  console.log(`\nExtracted ${extracted}/${total} ABIs to ${ABIS_DIR}`);
 
-    // The trailing newline is not cosmetic. These files are compared byte-for-byte
-    // against a fresh regeneration, so any byte an editor or formatter would add on
-    // its own turns that comparison red for a reason unrelated to the contracts —
-    // and the quickest way out of that red is to loosen the comparison, which
-    // silently removes the check. Emitting the newline the tooling would add anyway
-    // keeps the only differences that can ever appear here real ones.
-    fs.writeFileSync(
-      path.join(ABIS_DIR, `${name}.json`),
-      `${JSON.stringify(abi, null, 2)}\n`
+  if (missing > 0) {
+    console.error(
+      `\n${missing} ABI(s) missing — did you run \`forge build\` in both repos?`
     );
-    console.log(`  OK: ${name} (${abi.length} entries)`);
-    extracted++;
+    process.exit(1);
   }
 }
 
-extract(CORE_OUT, CORE_CONTRACTS, 'core');
-extract(PERIPHERY_OUT, PERIPHERY_CONTRACTS, 'periphery');
-
-const total = CORE_CONTRACTS.length + PERIPHERY_CONTRACTS.length;
-console.log(`\nExtracted ${extracted}/${total} ABIs to ${ABIS_DIR}`);
-
-if (missing > 0) {
-  console.error(
-    `\n${missing} ABI(s) missing — did you run \`forge build\` in both repos?`
-  );
-  process.exit(1);
+if (require.main === module) {
+  main();
 }

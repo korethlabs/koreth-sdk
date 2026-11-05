@@ -91,20 +91,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Stated up front rather than left to surface as a git authentication error further
-      # down. Both contract repos are private and the default GITHUB_TOKEN is scoped to this
-      # repository alone, so without a separate credential nothing can be cloned, nothing can
-      # be built, and there is no comparison to make. Fail rather than skip: a token that has
-      # lapsed must not turn this into a run that checked nothing and said so in green.
-      - name: Require a token that can read the contract repos
-        env:
-          SUBMODULE_TOKEN: ${{ secrets.SUBMODULE_TOKEN }}
-        run: |
-          if [ -z "$SUBMODULE_TOKEN" ]; then
-            echo "::error::SUBMODULE_TOKEN is not set, so the private contract repos cannot be cloned and the committed ABIs cannot be checked against anything. Failing rather than reporting a green run that compared nothing."
-            exit 1
-          fi
-
       # Both taken at main. The alternative was to read core through periphery's submodule
       # pin, which is a pinned ref and so would not move under an unrelated pull request —
       # but it would also hold this check at whatever core commit periphery last vendored,
@@ -115,43 +101,44 @@ jobs:
       # pull request opened here goes red for something its author did not do. That is the
       # intended signal — the ABIs really are stale at that point — and the fix is to run
       # `npm run generate-abis` and commit the result.
+      #
+      # Both contract repos are public, so no repository secret is read anywhere in this job:
+      # the checkouts use the default workflow token, which can read any public repository.
+      # That is what lets a pull request from a fork run it at all — GitHub withholds secrets
+      # from fork PRs, so a job that needed one could only fail there. persist-credentials is
+      # off because nothing after checkout talks to a remote, so the token has no reason to
+      # stay configured in the clones for the rest of the job.
       - name: Check out koreth-v1-core
         uses: actions/checkout@v7
         with:
           repository: korethlabs/koreth-v1-core
           ref: main
           path: contracts/core
-          token: ${{ secrets.SUBMODULE_TOKEN }}
-          # core's own submodules are public HTTPS remotes, so they need no rewriting.
+          persist-credentials: false
           submodules: recursive
 
+      # Recursive like core. periphery vendors core as a submodule over HTTPS, and with core
+      # public that remote resolves anonymously, so no URL rewrite is needed.
       - name: Check out koreth-v1-periphery
         uses: actions/checkout@v7
         with:
           repository: korethlabs/koreth-v1-periphery
           ref: main
           path: contracts/periphery
-          token: ${{ secrets.SUBMODULE_TOKEN }}
-          # Deliberately not `submodules: recursive`: periphery's .gitmodules points at the
-          # private core over SSH, which no token can satisfy. Handled in the next step.
+          persist-credentials: false
+          submodules: recursive
 
-      # periphery vendors the private core as an SSH submodule, and no credential can satisfy
-      # an SSH remote, so the URL has to be rewritten to an authenticated HTTPS one.
-      #
-      # The rewrite is supplied through GIT_CONFIG_COUNT rather than written with
-      # `git config --global`. Both are visible to the child git processes that `submodule
-      # update` spawns, which is the only requirement; the difference is that this form never
-      # puts the credential on the filesystem. A token in ~/.gitconfig outlives the step that
-      # needed it, stays readable by every later step in the job, and is picked up by anything
-      # that archives the runner's home directory. Deleting it afterwards would not close that
-      # window either, since a step that fails never reaches its own cleanup.
-      - name: Fetch periphery's submodules
-        working-directory: contracts/periphery
+      # The guard against a green run that compared nothing. With no credential left to test
+      # for, test what the credential stood for: that every source behind the eighteen ABIs
+      # is here and declares its contract. It reads its list from extract-abis.js, so it
+      # cannot fall out of step with what gets extracted. It runs before the cache step on
+      # purpose — the cache key hashes these sources, and an empty checkout hashes to a
+      # constant that could restore an out/ built from some other tree.
+      - name: Require the contract sources
         env:
-          GIT_CONFIG_COUNT: '1'
-          GIT_CONFIG_KEY_0: url.https://x-access-token:${{ secrets.SUBMODULE_TOKEN }}@github.com/.insteadOf
-          GIT_CONFIG_VALUE_0: 'git@github.com:'
-        run: git submodule update --init --recursive --depth=1
+          CORE_ROOT: contracts/core
+          PERIPHERY_ROOT: contracts/periphery
+        run: node scripts/require-contract-sources.js
 
       # via-IR compilation is memory-hungry and the 2-core runner OOMs without headroom,
       # the same way it does in both contract repos' own CI. Turning the optimizer off to
