@@ -13,7 +13,7 @@
  * that could restore an `out/` built from some earlier tree.
  *
  * For every name in scripts/extract-abis.js it requires exactly one `<Name>.sol`
- * under the given root's `src/`, non-empty and declaring `contract <Name>`. The
+ * under the given root's `src/` that declares `contract <Name>` outside a comment. The
  * core names are checked twice: in core itself, and in periphery's vendored copy
  * under lib/koreth-v1-core, which is what periphery compiles against.
  *
@@ -59,8 +59,15 @@ function requireSources(srcDir, names, label) {
       errors++;
       continue;
     }
-    const source = fs.readFileSync(matches[0], 'utf-8');
-    if (!new RegExp(`\\bcontract\\s+${name}\\b`).test(source)) {
+    // Comments are stripped and the declaration must open a line, so a file that only
+    // mentions the contract — `// contract LendingEngine`, or a NatSpec line — does not
+    // count as its source. The stripping is deliberately crude: a `//` inside a string
+    // literal removes more text than it should, which can only turn this red, never green.
+    const source = fs
+      .readFileSync(matches[0], 'utf-8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '');
+    if (!new RegExp(`^\\s*(abstract\\s+)?contract\\s+${name}\\b`, 'm').test(source)) {
       console.error(
         `  EMPTY: ${path.relative(srcDir, matches[0])} does not declare contract ${name}`
       );
